@@ -116,15 +116,13 @@ Hint: for more examples how to compile 7-Zip-JBinding see "<git-root>/scripts" d
 a) Download source package from http://sourceforge.net/projects/sevenzipjbind/files/
    and extract it into some <srcdir> directory. Try to avoid directory names with spaces in your path.
 
-   Optionally you can checkout a master (current development version) from GIT repository 
-    $ git clone git://sevenzipjbind.git.sourceforge.net/gitroot/sevenzipjbind/sevenzipjbind SevenZipJBinding
-    or
-    $ git clone https://github.com/borisbrodski/sevenzipjbinding.git SevenZipJBinding
+   Optionally you can checkout this fork from GIT repository
+    $ git clone https://github.com/jihuayu/sevenzipjbinding.git SevenZipJBinding
 
     $ cd SevenZipJBinding
     $ git checkout Release-4.65-1.02rc-extr-only
 
-b) You will need the CMake (2.6 or higher) to configure 7-Zip-JBinding for your system.
+b) You will need CMake 3.15 or higher to configure 7-Zip-JBinding for your system.
    You can check the version of your CMake by typing:
     $ cmake --version
 
@@ -138,10 +136,14 @@ c) The next step is to run CMake. Both in-source and out-of-source methods are s
     $ cmake .
 
    Where <srcdir> is a directory, where you extracted or checked out the source code.   
-   On some Linux distributions you will need to set JAVA_JDK cmake option to your Java JDK 1.5 or higher. You can use a GUI CMake
-   tool 'cmake-gui', edit 'CMakeCache.txt' file with your favorite text editor or just delete 'CMakeCache.txt' file
-   and restart CMake with a -DJAVA_JDK parameter:
+   This fork keeps Java 1.5 runtime compatibility by compiling Java classes with JDK 8 using
+   -source 1.5 -target 1.5. Use Zulu 8 or another JDK 8 when building release artifacts.
+   You can set JAVA_HOME or pass -DJAVA_JDK:
     $ cmake . -DJAVA_JDK=<path-to-jdk>
+
+   If you intentionally do not need Java 1.5 runtime compatibility, a modern JDK can be used
+   by configuring with:
+    $ cmake . -DJAVA_RELEASE=8
    
    If everything goes right, you will get an overview of chosen tools and build options.
 

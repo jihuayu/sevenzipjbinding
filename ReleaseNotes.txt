@@ -1,7 +1,7 @@
 7-Zip-JBinding Release Notes
 ============================
 
-Main features of 16.02-2.01 (Release, extraction/compression/update, cross-platform, based on zip/p7zip 16.02)
+Main features of 26.2.0 (Release, extraction/compression/update, cross-platform, based on zip/p7zip 16.02)
 
     * Bind 7-Zip 16.02, In-memory archive extraction/creation/update
 
@@ -23,17 +23,18 @@ Main features of 16.02-2.01 (Release, extraction/compression/update, cross-platf
     * Cross-platform. Binaries available for
         - Windows 32/64
         - Linux 32/64
-        - Mac OS X 64
-        - ARM (WARNING: Not a part of -AllPlatform or -AllLinux !!!)
-			* ARMv5 (armel)
-			* ARMv6 (RaspberryPi 2)
-			* ARMv7 (armhf)
-			* ARM64
+        - Mac OS X Intel 64 and Apple Silicon
+        - Linux ARM
+            * ARMv5 (armel)
+            * ARMv6 (RaspberryPi 2)
+            * ARMv7 (armhf)
+            * ARM64
 
     * Multi-platform distributions (with platform auto-detection):
         - AllWindows - includes Win32 and Win64
-        - AllLinux - includes Linux32 and Linux64 (ARM not included)
-        - AllPlatforms - includes AllWindows, AllLinux and Mac
+        - AllLinux - includes Linux32, Linux64 and Linux ARM
+        - AllMac - includes Mac Intel 64 and Apple Silicon
+        - AllPlatforms - includes AllWindows, AllLinux and AllMac
 
     * JavaDoc + Snippets (see documentation on the web: sevenzipjbind.sf.net)
 
@@ -43,15 +44,14 @@ Main features of 16.02-2.01 (Release, extraction/compression/update, cross-platf
             - Compression
             - Unicode support
 
-    * Available on the Maven Central (a week after the official release)
+    * Available on Maven Central
         <dependency>
-            <groupId>net.sf.sevenzipjbinding</groupId>
+            <groupId>com.jihuayu</groupId>
             <artifactId>sevenzipjbinding</artifactId>
-            <version>16.02-2.01</version>
+            <version>26.2.0</version>
         </dependency>
         <dependency>
-            <groupId>net.sf.sevenzipjbinding</groupId>
+            <groupId>com.jihuayu</groupId>
             <artifactId>sevenzipjbinding-all-platforms</artifactId>
-            <version>16.02-2.01</version>
+            <version>26.2.0</version>
         </dependency>
-

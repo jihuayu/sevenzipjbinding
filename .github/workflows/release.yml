@@ -1,0 +1,321 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version
+        required: true
+        default: 26.2.0
+      publish:
+        description: Upload validated bundle to Maven Central Portal
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: macOS ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Mac-aarch64
+            runner: macos-15
+            java_arch: aarch64
+          - platform: Mac-x86_64
+            runner: macos-15-intel
+            java_arch: x86_64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Zulu 8
+        run: |
+          JAVA_HOME="$(scripts/ci/install-zulu8-macos.sh)"
+          echo "JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Configure
+        run: >
+          cmake -S . -B build
+          -DBUILD_TESTING=OFF
+          -DJAVA_SYSTEM=Mac
+          -DJAVA_ARCH=${{ matrix.java_arch }}
+
+      - name: Build package
+        run: |
+          cmake --build build --parallel 3
+          cmake --build build --target package
+
+      - name: Smoke test
+        run: scripts/ci/smoke-init.sh build/jbinding-java/sevenzipjbinding.jar "build/sevenzipjbinding-${{ matrix.platform }}.jar"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.platform }}
+          path: build/sevenzipjbinding-${{ inputs.version }}-${{ matrix.platform }}.zip
+          if-no-files-found: error
+
+  linux-native:
+    name: Linux ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Linux-amd64
+            runner: ubuntu-24.04
+            java_arch: amd64
+          - platform: Linux-arm64
+            runner: ubuntu-24.04-arm
+            java_arch: aarch64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '8'
+
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y cmake build-essential zip unzip
+
+      - name: Configure
+        run: >
+          cmake -S . -B build
+          -DBUILD_TESTING=OFF
+          -DJAVA_SYSTEM=Linux
+          -DJAVA_ARCH=${{ matrix.java_arch }}
+
+      - name: Build package
+        run: |
+          cmake --build build --parallel "$(nproc)"
+          cmake --build build --target package
+
+      - name: Smoke test
+        run: scripts/ci/smoke-init.sh build/jbinding-java/sevenzipjbinding.jar "build/sevenzipjbinding-${{ matrix.platform }}.jar"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.platform }}
+          path: build/sevenzipjbinding-${{ inputs.version }}-${{ matrix.platform }}.zip
+          if-no-files-found: error
+
+  linux-i386:
+    name: Linux i386
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '8'
+
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y cmake build-essential gcc-multilib g++-multilib zip unzip
+
+      - name: Configure
+        run: >
+          cmake -S . -B build
+          -DBUILD_TESTING=OFF
+          -DJAVA_SYSTEM=Linux
+          -DJAVA_ARCH=i386
+          -DCMAKE_C_FLAGS=-m32
+          -DCMAKE_CXX_FLAGS=-m32
+          -DCMAKE_SHARED_LINKER_FLAGS=-m32
+
+      - name: Build package
+        run: |
+          cmake --build build --parallel "$(nproc)"
+          cmake --build build --target package
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-Linux-i386
+          path: build/sevenzipjbinding-${{ inputs.version }}-Linux-i386.zip
+          if-no-files-found: error
+
+  linux-arm-cross:
+    name: Linux ${{ matrix.platform }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Linux-armv5
+            java_arch: armv5
+            compiler_prefix: arm-linux-gnueabi
+            packages: gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
+            flags: -march=armv5te
+          - platform: Linux-armv6
+            java_arch: armv6
+            compiler_prefix: arm-linux-gnueabihf
+            packages: gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+            flags: -march=armv6 -mfloat-abi=hard -mfpu=vfp
+          - platform: Linux-armv71
+            java_arch: armv71
+            compiler_prefix: arm-linux-gnueabihf
+            packages: gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+            flags: -march=armv7-a -mfloat-abi=hard -mfpu=vfpv3-d16
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '8'
+
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y cmake build-essential zip unzip ${{ matrix.packages }}
+
+      - name: Configure
+        run: >
+          cmake -S . -B build
+          -DBUILD_TESTING=OFF
+          -DCMAKE_SYSTEM_NAME=Linux
+          -DJAVA_SYSTEM=Linux
+          -DJAVA_ARCH=${{ matrix.java_arch }}
+          -DCMAKE_C_COMPILER=${{ matrix.compiler_prefix }}-gcc
+          -DCMAKE_CXX_COMPILER=${{ matrix.compiler_prefix }}-g++
+          -DCMAKE_C_FLAGS="${{ matrix.flags }}"
+          -DCMAKE_CXX_FLAGS="${{ matrix.flags }}"
+
+      - name: Build package
+        run: |
+          cmake --build build --parallel "$(nproc)"
+          cmake --build build --target package
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.platform }}
+          path: build/sevenzipjbinding-${{ inputs.version }}-${{ matrix.platform }}.zip
+          if-no-files-found: error
+
+  windows:
+    name: Windows ${{ matrix.platform }}
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Windows-amd64
+            msystem: MINGW64
+            mingw_package_arch: x86_64
+            mingw_flag: MINGW64
+            java_arch: amd64
+          - platform: Windows-x86
+            msystem: MINGW32
+            mingw_package_arch: i686
+            mingw_flag: MINGW32
+            java_arch: x86
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '8'
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          path-type: inherit
+          install: >-
+            base-devel
+            mingw-w64-${{ matrix.mingw_package_arch }}-cmake
+            mingw-w64-${{ matrix.mingw_package_arch }}-gcc
+            mingw-w64-${{ matrix.mingw_package_arch }}-make
+            mingw-w64-${{ matrix.mingw_package_arch }}-zip
+            mingw-w64-${{ matrix.mingw_package_arch }}-unzip
+
+      - name: Configure
+        shell: msys2 {0}
+        run: >
+          cmake -S . -B build -G "MinGW Makefiles"
+          -DBUILD_TESTING=OFF
+          -D${{ matrix.mingw_flag }}=Yes
+          -DJAVA_SYSTEM=Windows
+          -DJAVA_ARCH=${{ matrix.java_arch }}
+
+      - name: Build package
+        shell: msys2 {0}
+        run: |
+          cmake --build build --parallel 3
+          cmake --build build --target package
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.platform }}
+          path: build/sevenzipjbinding-${{ inputs.version }}-${{ matrix.platform }}.zip
+          if-no-files-found: error
+
+  bundle:
+    name: Maven Central bundle
+    needs:
+      - macos
+      - linux-native
+      - linux-i386
+      - linux-arm-cross
+      - windows
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '8'
+
+      - name: Assemble aggregate distributions
+        working-directory: dist
+        run: |
+          ../scripts/build-multiplatform-release.sh --name AllWindows sevenzipjbinding-${{ inputs.version }}-Windows-*.zip
+          ../scripts/build-multiplatform-release.sh --name AllLinux sevenzipjbinding-${{ inputs.version }}-Linux-*.zip
+          ../scripts/build-multiplatform-release.sh --name AllMac sevenzipjbinding-${{ inputs.version }}-Mac-*.zip
+          ../scripts/build-multiplatform-release.sh sevenzipjbinding-${{ inputs.version }}-*.zip
+
+      - name: Import GPG key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+            echo "SKIP_GPG=0" >> "$GITHUB_ENV"
+          else
+            echo "No GPG_PRIVATE_KEY secret found; building unsigned dry-run bundle."
+            echo "SKIP_GPG=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build Central bundle
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: scripts/release/make-central-bundle.sh "${{ inputs.version }}" dist "sevenzipjbinding-${{ inputs.version }}-central-bundle.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: central-bundle
+          path: sevenzipjbinding-${{ inputs.version }}-central-bundle.zip
+          if-no-files-found: error
+
+      - name: Upload to Maven Central Portal
+        if: ${{ inputs.publish }}
+        env:
+          CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+          CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          if [ "$SKIP_GPG" = "1" ]; then
+            echo "Refusing to publish unsigned bundle. Configure GPG_PRIVATE_KEY and GPG_PASSPHRASE secrets." >&2
+            exit 1
+          fi
+          scripts/release/publish-central.sh "sevenzipjbinding-${{ inputs.version }}-central-bundle.zip" "sevenzipjbinding-${{ inputs.version }}"

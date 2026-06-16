@@ -443,9 +443,18 @@ SET(JBINDING_CPP_FILES
     ../test/CTests/CHeadCacheInStreamTest.cpp
 )
 
+SET(JAVAH_OUTPUT_DIR ${PROJECT_BINARY_DIR}/javah)
+FILE(MAKE_DIRECTORY ${JAVAH_OUTPUT_DIR})
+FILE(MAKE_DIRECTORY ${JAVAH_OUTPUT_DIR}/classes)
 SET(JBINDING_JAVAH_H_FILES
-    ${PROJECT_SOURCE_DIR}/JavaToCPP/Java/net_sf_sevenzipjbinding_impl_InArchiveImpl.h
-    ${PROJECT_SOURCE_DIR}/JavaToCPP/Java/net_sf_sevenzipjbinding_SevenZip.h
+    ${JAVAH_OUTPUT_DIR}/net_sf_sevenzipjbinding_SevenZip.h
+    ${JAVAH_OUTPUT_DIR}/net_sf_sevenzipjbinding_impl_InArchiveImpl.h
+    ${JAVAH_OUTPUT_DIR}/net_sf_sevenzipjbinding_impl_OutArchiveImpl.h
+)
+SET(JBINDING_JAVAH_JAVA_SOURCE_FILES
+    ${CMAKE_SOURCE_DIR}/jbinding-java/src/net/sf/sevenzipjbinding/SevenZip.java
+    ${CMAKE_SOURCE_DIR}/jbinding-java/src/net/sf/sevenzipjbinding/impl/InArchiveImpl.java
+    ${CMAKE_SOURCE_DIR}/jbinding-java/src/net/sf/sevenzipjbinding/impl/OutArchiveImpl.java
 )
 
 #SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fvisibility-inlines-hidden")
@@ -461,30 +470,15 @@ ENDIF(CMAKE_COMPILER_IS_GNUCXX)
 #ADD_EXECUTABLE(Client7z Client7z.cpp ${P7ZIP_SOURCE_FILES})
 #TARGET_LINK_LIBRARIES(Client7z dl)
 
-#<exec executable="${javah}">                                                                                 
-#                        <arg value="-jni" />                                                                                 
-#                        <arg value="-d" />                                                                                   
-#                        <arg path="${workspace}/${sevenzip.javaheaders}" />                                                  
-#                        <arg value="-force" />                                                                               
-#                        <arg value="-classpath" />                                                                           
-#                        <arg path="${basedir}/bin" />                                                                        
-#                        <arg value="net.sf.sevenzip.SevenZip" />                                                             
-#                        <arg value="net.sf.sevenzip.impl.InArchiveImpl" />                                                   
-#                </exec>
-SET(JAVAH_OUTPUT_DIR ${PROJECT_BINARY_DIR}/javah)
-FILE(MAKE_DIRECTORY ${JAVAH_OUTPUT_DIR})
-SET(JAVAH_JAVA_CLASS_LIST
-    net.sf.sevenzipjbinding.SevenZip
-    net.sf.sevenzipjbinding.impl.InArchiveImpl
-    net.sf.sevenzipjbinding.impl.OutArchiveImpl
-)
-
-
 add_custom_command(OUTPUT ${JBINDING_JAVAH_H_FILES}
-                   COMMAND ${JAVA_HEADER_COMPILE} -jni -d . -classpath ${SEVENZIPJBINDING_JAR} ${JAVAH_JAVA_CLASS_LIST}  
-                   DEPENDS ${SEVENZIPJBINDING_JAR}
+                   COMMAND ${JAVA_COMPILE} ${JAVAC_COMPAT_ARGS}
+                           -h ${JAVAH_OUTPUT_DIR}
+                           -classpath ${SEVENZIPJBINDING_JAR}
+                           -d ${JAVAH_OUTPUT_DIR}/classes
+                           ${JBINDING_JAVAH_JAVA_SOURCE_FILES}
+                   DEPENDS ${SEVENZIPJBINDING_JAR} ${JBINDING_JAVAH_JAVA_SOURCE_FILES}
                    WORKING_DIRECTORY ${JAVAH_OUTPUT_DIR}
-                   COMMENT "javah: generating h-files from java classes ${JAVAH_JAVA_CLASS_LIST}"
+                   COMMENT "javac -h: generating JNI headers"
 )
 
 add_library(7-Zip-JBinding
@@ -498,7 +492,7 @@ add_library(7-Zip-JBinding
 #GET_TARGET_PROPERTY(SEVENZIP_JBINDING_LIB 7-Zip-JBinding LOCATION)
 #SET_PROPERTY(GLOBAL PROPERTY SEVENZIP_JBINDING_LIB ${SEVENZIP_JBINDING_LIB}) 
 
-IF(STATIC_BUILD) 
+IF(STATIC_BUILD AND NOT APPLE)
     SET_PROPERTY(TARGET 7-Zip-JBinding APPEND_STRING PROPERTY LINK_FLAGS " -static-libgcc -static-libstdc++ ")
 ENDIF()
 

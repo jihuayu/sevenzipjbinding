@@ -1,27 +1,28 @@
 # Add extended seach to the java tools.
 #
 # Input variables (for example, through -Dvar=value cmake option)
-# - JAVA_JDK - path to jdk1.5 or higher 
-# - JAVA_HOME - path to jdk1.5 or higher 
+# - JAVA_JDK - path to JDK 8 or higher
+# - JAVA_HOME - path to JDK 8 or higher
 #
 # Sets:
 #  - JAVA_COMPILE        (<jdk>/bin/javac)
 #  - JAVA_RUNTIME        (<jdk>/bin/java)
-#  - JAVA_HEADER_COMPILE (<jdk>/bin/javah)
 #  - JAVA_DOC            (<jdk>/bin/javadoc)
 #  - JAVA_ARCHIVE        (<jdk>/bin/jar)
 #  - JAVA_INCLUDE_PATH   (<jdk>/include) Path to jni.h
 #  - JAVA_ARCH           (System.getProperty("os.arch"))
 
-SET(JAVA_JDK CACHE PATH "Path to JDK 1.5 or higher")
+SET(JAVA_JDK CACHE PATH "Path to JDK 8 or higher")
 IF(NOT JAVA_JDK_OLD)
     SET(JAVA_JDK_OLD CACHE INTERNAL "Internal: Old copy of JAVA_JDK")
 ENDIF()
 IF(JAVA_HOME)
     SET(JAVA_JDK "${JAVA_HOME}")
+ELSEIF(DEFINED ENV{JAVA_HOME})
+    SET(JAVA_JDK "$ENV{JAVA_HOME}")
 ENDIF()
 SET(HELP
-"Please set JAVA_HOME to jdk1.5 or higher or use -DJAVA_JDK=<path-to-jdk> switch for cmake.
+"Please set JAVA_HOME to JDK 8 or higher or use -DJAVA_JDK=<path-to-jdk> switch for cmake.
 Don't forget to delete 'CMakeCache.txt' file, if you want '-D' parameter to take effect."
 )
 
@@ -31,7 +32,6 @@ IF(NOT "${JAVA_JDK}" STREQUAL "${JAVA_JDK_OLD}")
     ENDIF()
     SET(JAVA_COMPILE                 JAVA_COMPILE-NOTFOUND)
     SET(JAVA_RUNTIME                 JAVA_RUNTIME-NOTFOUND)
-    SET(JAVA_HEADER_COMPILE          JAVA_HEADER_COMPILE-NOTFOUND)
     SET(JAVA_DOC                     JAVA_DOC-NOTFOUND)
     SET(JAVA_ARCHIVE                 JAVA_ARCHIVE-NOTFOUND)
     SET(JAVA_INCLUDE_PATH            JAVA_INCLUDE_PATH-NOTFOUND)
@@ -46,6 +46,8 @@ IF(NOT JAVA_INCLUDE_PATH)
             PATHS
                 "${JAVA_JDK}/include"
                 "$ENV{JAVA_HOME}/include"
+                "${JAVA_JDK}/Contents/Home/include"
+                "$ENV{JAVA_HOME}/Contents/Home/include"
             NO_CMAKE_FIND_ROOT_PATH
     )
     
@@ -79,6 +81,7 @@ IF(NOT JAVA_INCLUDE_PATH2)
     FIND_FILE(JAVA_JNI_MD_H
                 jni_md.h
             PATHS
+                "${JAVA_INCLUDE_PATH}"
                 "${JAVA_INCLUDE_PATH}/win32"
                 "${JAVA_INCLUDE_PATH}/linux"
                 "${JAVA_INCLUDE_PATH}/freebsd"
@@ -137,42 +140,21 @@ IF(NOT JAVA_COMPILE)
     ENDIF()
 ENDIF()
 
-
-IF(NOT JAVA_HEADER_COMPILE)
-    MESSAGE("-- Looking for java header compiler 'javah'")
-    FIND_PROGRAM(JAVA_HEADER_COMPILE
-      javah
-      PATHS 
-            "${JAVA_JDK}/bin"
-            "$ENV{JAVA_HOME}/bin"
-            "${JAVA_JNI_JDK_PATH}/bin"
-            "[HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Development Kit\\1.4;JavaHome]/bin"
-            "[HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Development Kit\\1.3;JavaHome]/bin"
-            /usr/bin
-            /usr/lib/java/bin
-            /usr/share/java/bin
-            /usr/local/bin
-            /usr/local/java/bin
-        DOC "'javah' tool to use"
-        NO_DEFAULT_PATH
-        NO_CMAKE_ENVIRONMENT_PATH
-        NO_CMAKE_PATH
-        NO_SYSTEM_ENVIRONMENT_PATH
-        NO_CMAKE_SYSTEM_PATH
-        NO_CMAKE_FIND_ROOT_PATH
-    )
-    FIND_PROGRAM(JAVA_HEADER_COMPILE
-      javah
-    )
-    MARK_AS_ADVANCED(JAVA_HEADER_COMPILE)
-    
-    IF(JAVA_HEADER_COMPILE)
-        MESSAGE("-- Looking for java header compiler 'javah' - found: ${JAVA_HEADER_COMPILE}")
-    ELSE()
-        MESSAGE(FATAL_ERROR "Java header compiler 'javah' not found. ${HELP}")
-    ENDIF()
+EXECUTE_PROCESS(COMMAND ${JAVA_COMPILE} -version
+                RESULT_VARIABLE javac_version_result
+                OUTPUT_VARIABLE javac_version_output
+                ERROR_VARIABLE javac_version_error)
+IF(javac_version_result)
+    SET(JAVA_COMPILER_VERSION_STRING "Unknown javac")
+ELSE()
+    STRING(REGEX MATCH "[^\r\n]+" JAVA_COMPILER_VERSION_STRING "${javac_version_error}${javac_version_output}")
 ENDIF()
 
+IF(NOT JAVA_RELEASE AND JAVA_TARGET_LEVEL VERSION_LESS "1.6")
+    IF(NOT JAVA_COMPILER_VERSION_STRING MATCHES "^javac 1\\.[5678]")
+        MESSAGE(FATAL_ERROR "Default Java 1.5 bytecode compatibility requires JDK 8 because newer javac releases no longer support -source/-target 1.5. Use Zulu 8, or configure with -DJAVA_RELEASE=8 to build Java 8 bytecode with a modern JDK. Detected: ${JAVA_COMPILER_VERSION_STRING}")
+    ENDIF()
+ENDIF()
 
 IF(NOT JAVA_DOC)
     MESSAGE("-- Looking for java API Documentation Generator 'javadoc'")
@@ -305,7 +287,7 @@ public class TestClass {
     IF(javac_test_result)
         MESSAGE(FATAL_ERROR "${JAVA_COMPILE} can't compile simple java program.
         
-NOTE: Java 1.5 or higher is required in order to compile 7-Zip-JBinding.
+NOTE: Java 8 or higher is required in order to compile this 7-Zip-JBinding fork. Use JDK 8 for Java 1.5 bytecode compatibility.
         
 Javac error message: ${javac_test_err}")
     ENDIF()
@@ -335,7 +317,7 @@ public class JavaSystemPropertyTest {
     IF(javac_result)
         MESSAGE(FATAL_ERROR "${JAVA_COMPILE} can't compile simple java program.
         
-NOTE: Java 1.5 or higher is required in order to compile 7-Zip-JBinding.
+NOTE: Java 8 or higher is required in order to compile this 7-Zip-JBinding fork. Use JDK 8 for Java 1.5 bytecode compatibility.
         
 Javac error message: ${javac_err}")
     ENDIF()
@@ -348,11 +330,11 @@ Javac error message: ${javac_err}")
     IF(java_result)
         MESSAGE(FATAL_ERROR "${JAVA_RUNTIME} can't run simple java program.
         
-NOTE: Java 1.5 or higher is required in order to compile 7-Zip-JBinding.
+NOTE: Java 8 or higher is required in order to compile this 7-Zip-JBinding fork. Use JDK 8 for Java 1.5 bytecode compatibility.
         
 Javac error message: ${java_err}")
     ENDIF()
-    SET(JAVA_ARCH "${java_output}" CACHE INTERNAL "Java os.name")
+    SET(JAVA_ARCH "${java_output}" CACHE STRING "Java os.arch")
 
     EXECUTE_PROCESS(COMMAND ${JAVA_RUNTIME} ${JAVA_PARAMS} JavaSystemPropertyTest os.name
                     WORKING_DIRECTORY ${JAVAC_TEST_DIR}
@@ -362,20 +344,28 @@ Javac error message: ${java_err}")
     IF(java_result)
         MESSAGE(FATAL_ERROR "${JAVA_RUNTIME} can't run simple java program.
         
-NOTE: Java 1.5 or higher is required in order to compile 7-Zip-JBinding.
+NOTE: Java 8 or higher is required in order to compile this 7-Zip-JBinding fork. Use JDK 8 for Java 1.5 bytecode compatibility.
         
 Javac error message: ${java_err}")
     ENDIF()
 
-    SET(JAVA_SYSTEM "${java_output}" CACHE INTERNAL "Java os.arch")
+    SET(JAVA_SYSTEM "${java_output}" CACHE STRING "Java os.name")
     MESSAGE("-- Checking java compile - ok (arch: ${JAVA_ARCH}, system: ${JAVA_SYSTEM})")
 ENDIF()
 
+EXECUTE_PROCESS(COMMAND ${JAVA_RUNTIME} -version
+                RESULT_VARIABLE java_version_result
+                OUTPUT_VARIABLE java_version_output
+                ERROR_VARIABLE java_version_error)
+IF(java_version_result)
+    SET(JAVA_VERSION_STRING "Unknown Java")
+ELSE()
+    STRING(REGEX MATCH "[^\r\n]+" JAVA_VERSION_STRING "${java_version_error}")
+ENDIF()
 
 # Call cmake default version
 #MESSAGE("JAVA_INCLUDE_PATH: ${JAVA_INCLUDE_PATH}")
 #MESSAGE("JAVA_COMPILE: ${JAVA_COMPILE}")
 #MESSAGE("JAVA_RUNTIME: ${JAVA_RUNTIME}")
-#MESSAGE("JAVA_HEADER_COMPILE: ${JAVA_HEADER_COMPILE}")
 #MESSAGE("JAVA_DOC: ${JAVA_DOC}")
 #MESSAGE("JAVA_ARCHIVE: ${JAVA_ARCHIVE}")

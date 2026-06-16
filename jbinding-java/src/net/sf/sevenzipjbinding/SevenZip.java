@@ -192,7 +192,7 @@ public class SevenZip {
     }
 
     // Also change in /CMakeLists.txt
-    private static final String SEVENZIPJBINDING_VERSION = "16.02-2.01";
+    private static final String SEVENZIPJBINDING_VERSION = "26.2.0";
 
     private static final String SYSTEM_PROPERTY_TMP = "java.io.tmpdir";
     private static final String SYSTEM_PROPERTY_SEVEN_ZIP_NO_DO_PRIVILEGED_INITIALIZATION = "sevenzip.no_doprivileged_initialization";
@@ -880,7 +880,14 @@ public class SevenZip {
             return system + "-" + arch;
         }
 
-        // TODO allow fuzzy matches
+        String[] archAliases = getArchAliases(arch);
+        for (int i = 0; i < archAliases.length; i++) {
+            String candidate = system + "-" + archAliases[i];
+            if (availablePlatform.contains(candidate)) {
+                return candidate;
+            }
+        }
+
         StringBuilder stringBuilder = new StringBuilder("Can't find suited platform for os.arch=");
         stringBuilder.append(arch);
         stringBuilder.append(", os.name=");
@@ -894,6 +901,31 @@ public class SevenZip {
         stringBuilder.setLength(stringBuilder.length() - 2);
         throwInitException(stringBuilder.toString());
         return null; // Will never happen
+    }
+
+    private static String[] getArchAliases(String arch) {
+        if (arch == null) {
+            return new String[0];
+        }
+        if ("aarch64".equals(arch)) {
+            return new String[] { "arm64" };
+        }
+        if ("arm64".equals(arch)) {
+            return new String[] { "aarch64" };
+        }
+        if ("amd64".equals(arch)) {
+            return new String[] { "x86_64" };
+        }
+        if ("x86_64".equals(arch)) {
+            return new String[] { "amd64" };
+        }
+        if ("armv7".equals(arch)) {
+            return new String[] { "armv71" };
+        }
+        if ("armv71".equals(arch)) {
+            return new String[] { "armv7" };
+        }
+        return new String[0];
     }
 
     private static IInArchive callNativeOpenArchive(ArchiveFormat archiveFormat, IInStream inStream,

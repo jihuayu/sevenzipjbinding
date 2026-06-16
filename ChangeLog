@@ -1,6 +1,18 @@
 7-Zip-JBinding ChangeLog
 ========================
 
+Release - 26.2.0 (Release, cross-platform, based on zip/p7zip 16.02)
+
+	* Fork release under Maven groupId com.jihuayu
+
+	* Add Mac-aarch64 native build for Apple Silicon
+
+	* Keep Java 1.5 runtime compatibility using JDK 8 -source/-target 1.5 builds
+
+	* Add Maven Central Publisher Portal bundle/API release scripts
+
+	* Include Linux ARM and Mac Apple Silicon artifacts in all-platform aggregate packages
+
 Release - 16.02-2.02 (Release, cross-platform, based on zip/p7zip 16.02)
 
 	* Bugfix #5 RandomAccessFileOutStream should implement Closeable

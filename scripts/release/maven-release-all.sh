@@ -1,29 +1,13 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-ME="$(readlink -f "$0")"
-SCRIPT_DIR="$(dirname "$ME")"
+cat >&2 <<'EOF'
+scripts/release/maven-release-all.sh is deprecated.
 
-#REPO=sonatype-nexus-snapshots
-REPO=nexus-releases
+Use the Maven Central Publisher Portal release flow:
 
-echo -n "Enter version: "
-read VERSION
+  scripts/release/make-central-bundle.sh <version> <distribution-dir>
+  scripts/release/publish-central.sh <bundle-zip>
+EOF
 
-$SCRIPT_DIR/maven-release-jar.sh sevenzipjbinding-$VERSION-AllPlatforms.zip "$REPO"
-
-$SCRIPT_DIR/maven-release-jar.sh sevenzipjbinding-$VERSION-AllLinux.zip       "$REPO" -all-linux
-$SCRIPT_DIR/maven-release-jar.sh sevenzipjbinding-$VERSION-AllPlatforms.zip   "$REPO" -all-platforms
-$SCRIPT_DIR/maven-release-jar.sh sevenzipjbinding-$VERSION-AllWindows.zip     "$REPO" -all-windows
-$SCRIPT_DIR/maven-release-jar.sh sevenzipjbinding-$VERSION-Linux-i386.zip     "$REPO" -linux-i386
-$SCRIPT_DIR/maven-release-jar.sh sevenzipjbinding-$VERSION-Linux-amd64.zip    "$REPO" -linux-amd64
-$SCRIPT_DIR/maven-release-jar.sh sevenzipjbinding-$VERSION-Linux-arm64.zip    "$REPO" -linux-arm64
-$SCRIPT_DIR/maven-release-jar.sh sevenzipjbinding-$VERSION-Linux-armv5.zip    "$REPO" -linux-armv5
-$SCRIPT_DIR/maven-release-jar.sh sevenzipjbinding-$VERSION-Linux-armv6.zip    "$REPO" -linux-armv6
-$SCRIPT_DIR/maven-release-jar.sh sevenzipjbinding-$VERSION-Linux-armv71.zip   "$REPO" -linux-armv71
-$SCRIPT_DIR/maven-release-jar.sh sevenzipjbinding-$VERSION-Mac-x86_64.zip     "$REPO" -mac-x86_64
-$SCRIPT_DIR/maven-release-jar.sh sevenzipjbinding-$VERSION-Windows-amd64.zip  "$REPO" -windows-amd64
-$SCRIPT_DIR/maven-release-jar.sh sevenzipjbinding-$VERSION-Windows-x86.zip    "$REPO" -windows-x86
-
- 
-
-
+exit 1
