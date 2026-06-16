@@ -1,6 +1,15 @@
-name: Release
+name: CI and Release
 
 on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+      - '[0-9]*'
+  pull_request:
+    branches:
+      - '**'
   workflow_dispatch:
     inputs:
       version:
@@ -17,8 +26,70 @@ permissions:
   contents: read
 
 jobs:
+  context:
+    name: Release context
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.context.outputs.version }}
+      publish: ${{ steps.context.outputs.publish }}
+      publishing_type: ${{ steps.context.outputs.publishing_type }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: context
+        name: Resolve version and publishing mode
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          INPUT_PUBLISH: ${{ github.event.inputs.publish }}
+        run: |
+          set -euo pipefail
+
+          source_version="$(
+            sed -nE 's/^SET\(SEVENZIPJBINDING_VERSON[[:space:]]+"?([^" )]+)"?.*/\1/p' CMakeLists.txt | head -n1
+          )"
+          if [ -z "$source_version" ]; then
+            echo "Could not resolve SEVENZIPJBINDING_VERSON from CMakeLists.txt" >&2
+            exit 1
+          fi
+
+          version="$source_version"
+          publish=false
+          publishing_type=USER_MANAGED
+
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            version="${INPUT_VERSION:-$source_version}"
+            publish="${INPUT_PUBLISH:-false}"
+          elif [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            version="${GITHUB_REF_NAME#v}"
+            publish=true
+            publishing_type=AUTOMATIC
+          fi
+
+          if ! [[ "$version" =~ ^[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+            echo "Release version must look like 26.2.0 or 26.2.0-rc1: $version" >&2
+            exit 1
+          fi
+
+          if [ "$version" != "$source_version" ]; then
+            echo "Release version $version does not match CMakeLists.txt version $source_version." >&2
+            echo "Update source metadata before tagging or dispatching a different release version." >&2
+            exit 1
+          fi
+
+          {
+            echo "version=$version"
+            echo "publish=$publish"
+            echo "publishing_type=$publishing_type"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "version=$version"
+          echo "publish=$publish"
+          echo "publishing_type=$publishing_type"
+
   macos:
     name: macOS ${{ matrix.platform }}
+    needs: context
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -57,11 +128,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: dist-${{ matrix.platform }}
-          path: build/sevenzipjbinding-${{ inputs.version }}-${{ matrix.platform }}.zip
+          path: build/sevenzipjbinding-${{ needs.context.outputs.version }}-${{ matrix.platform }}.zip
           if-no-files-found: error
 
   linux-native:
     name: Linux ${{ matrix.platform }}
+    needs: context
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -102,11 +174,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: dist-${{ matrix.platform }}
-          path: build/sevenzipjbinding-${{ inputs.version }}-${{ matrix.platform }}.zip
+          path: build/sevenzipjbinding-${{ needs.context.outputs.version }}-${{ matrix.platform }}.zip
           if-no-files-found: error
 
   linux-i386:
     name: Linux i386
+    needs: context
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -137,11 +210,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: dist-Linux-i386
-          path: build/sevenzipjbinding-${{ inputs.version }}-Linux-i386.zip
+          path: build/sevenzipjbinding-${{ needs.context.outputs.version }}-Linux-i386.zip
           if-no-files-found: error
 
   linux-arm-cross:
     name: Linux ${{ matrix.platform }}
+    needs: context
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -193,11 +267,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: dist-${{ matrix.platform }}
-          path: build/sevenzipjbinding-${{ inputs.version }}-${{ matrix.platform }}.zip
+          path: build/sevenzipjbinding-${{ needs.context.outputs.version }}-${{ matrix.platform }}.zip
           if-no-files-found: error
 
   windows:
     name: Windows ${{ matrix.platform }}
+    needs: context
     runs-on: windows-2022
     strategy:
       fail-fast: false
@@ -248,15 +323,20 @@ jobs:
           cmake --build build --parallel 3
           cmake --build build --target package
 
+      - name: Smoke test
+        shell: msys2 {0}
+        run: scripts/ci/smoke-init.sh build/jbinding-java/sevenzipjbinding.jar "build/sevenzipjbinding-${{ matrix.platform }}.jar"
+
       - uses: actions/upload-artifact@v4
         with:
           name: dist-${{ matrix.platform }}
-          path: build/sevenzipjbinding-${{ inputs.version }}-${{ matrix.platform }}.zip
+          path: build/sevenzipjbinding-${{ needs.context.outputs.version }}-${{ matrix.platform }}.zip
           if-no-files-found: error
 
   bundle:
     name: Maven Central bundle
     needs:
+      - context
       - macos
       - linux-native
       - linux-i386
@@ -279,10 +359,10 @@ jobs:
       - name: Assemble aggregate distributions
         working-directory: dist
         run: |
-          ../scripts/build-multiplatform-release.sh --name AllWindows sevenzipjbinding-${{ inputs.version }}-Windows-*.zip
-          ../scripts/build-multiplatform-release.sh --name AllLinux sevenzipjbinding-${{ inputs.version }}-Linux-*.zip
-          ../scripts/build-multiplatform-release.sh --name AllMac sevenzipjbinding-${{ inputs.version }}-Mac-*.zip
-          ../scripts/build-multiplatform-release.sh sevenzipjbinding-${{ inputs.version }}-*.zip
+          ../scripts/build-multiplatform-release.sh --name AllWindows sevenzipjbinding-${{ needs.context.outputs.version }}-Windows-*.zip
+          ../scripts/build-multiplatform-release.sh --name AllLinux sevenzipjbinding-${{ needs.context.outputs.version }}-Linux-*.zip
+          ../scripts/build-multiplatform-release.sh --name AllMac sevenzipjbinding-${{ needs.context.outputs.version }}-Mac-*.zip
+          ../scripts/build-multiplatform-release.sh sevenzipjbinding-${{ needs.context.outputs.version }}-*.zip
 
       - name: Import GPG key
         env:
@@ -299,23 +379,24 @@ jobs:
       - name: Build Central bundle
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: scripts/release/make-central-bundle.sh "${{ inputs.version }}" dist "sevenzipjbinding-${{ inputs.version }}-central-bundle.zip"
+        run: scripts/release/make-central-bundle.sh "${{ needs.context.outputs.version }}" dist "sevenzipjbinding-${{ needs.context.outputs.version }}-central-bundle.zip"
 
       - uses: actions/upload-artifact@v4
         with:
           name: central-bundle
-          path: sevenzipjbinding-${{ inputs.version }}-central-bundle.zip
+          path: sevenzipjbinding-${{ needs.context.outputs.version }}-central-bundle.zip
           if-no-files-found: error
 
       - name: Upload to Maven Central Portal
-        if: ${{ inputs.publish }}
+        if: ${{ needs.context.outputs.publish == 'true' }}
         env:
           CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
           CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          PUBLISHING_TYPE: ${{ needs.context.outputs.publishing_type }}
         run: |
           if [ "$SKIP_GPG" = "1" ]; then
             echo "Refusing to publish unsigned bundle. Configure GPG_PRIVATE_KEY and GPG_PASSPHRASE secrets." >&2
             exit 1
           fi
-          scripts/release/publish-central.sh "sevenzipjbinding-${{ inputs.version }}-central-bundle.zip" "sevenzipjbinding-${{ inputs.version }}"
+          scripts/release/publish-central.sh "sevenzipjbinding-${{ needs.context.outputs.version }}-central-bundle.zip" "sevenzipjbinding-${{ needs.context.outputs.version }}"
