@@ -39,7 +39,7 @@ cleanup() {
 trap cleanup EXIT
 
 attach_output="$(hdiutil attach -nobrowse -readonly "$DMG")"
-MOUNT_POINT="$(printf '%s\n' "$attach_output" | awk -F '\t' '/\\/Volumes\\// {print $NF; exit}')"
+MOUNT_POINT="$(printf '%s\n' "$attach_output" | awk -F '\t' '/\/Volumes\// {print $NF; exit}')"
 if [[ "$MOUNT_POINT" == "" ]]; then
   echo "Could not determine zulu@8 DMG mount point" >&2
   printf '%s\n' "$attach_output" >&2

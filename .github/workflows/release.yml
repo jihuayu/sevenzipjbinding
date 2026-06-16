@@ -230,7 +230,7 @@ jobs:
             java_arch: armv6
             compiler_prefix: arm-linux-gnueabihf
             packages: gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
-            flags: -march=armv6 -mfloat-abi=hard -mfpu=vfp
+            flags: -march=armv6 -marm -mfloat-abi=hard -mfpu=vfp
           - platform: Linux-armv71
             java_arch: armv71
             compiler_prefix: arm-linux-gnueabihf
@@ -283,11 +283,13 @@ jobs:
             mingw_package_arch: x86_64
             mingw_flag: MINGW64
             java_arch: amd64
+            java_setup_arch: x64
           - platform: Windows-x86
             msystem: MINGW32
             mingw_package_arch: i686
             mingw_flag: MINGW32
             java_arch: x86
+            java_setup_arch: x86
     steps:
       - uses: actions/checkout@v4
 
@@ -295,6 +297,7 @@ jobs:
         with:
           distribution: zulu
           java-version: '8'
+          architecture: ${{ matrix.java_setup_arch }}
 
       - uses: msys2/setup-msys2@v2
         with:
@@ -305,8 +308,8 @@ jobs:
             mingw-w64-${{ matrix.mingw_package_arch }}-cmake
             mingw-w64-${{ matrix.mingw_package_arch }}-gcc
             mingw-w64-${{ matrix.mingw_package_arch }}-make
-            mingw-w64-${{ matrix.mingw_package_arch }}-zip
-            mingw-w64-${{ matrix.mingw_package_arch }}-unzip
+            zip
+            unzip
 
       - name: Configure
         shell: msys2 {0}
