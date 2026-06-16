@@ -144,7 +144,7 @@ jobs:
             java_arch: amd64
           - platform: Linux-arm64
             runner: ubuntu-24.04-arm
-            java_arch: aarch64
+            java_arch: arm64
     steps:
       - uses: actions/checkout@v4
 

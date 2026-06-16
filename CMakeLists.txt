@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.15)
 project(SevenZipJBinding)
 
+SET(CMAKE_CXX_STANDARD 14)
+SET(CMAKE_CXX_STANDARD_REQUIRED ON)
+SET(CMAKE_CXX_EXTENSIONS ON)
+
 # Compile on Mac OS https://bug477945.bugzilla.mozilla.org/attachment.cgi?id=376115
 # 64 bit java: /System/Library/Frameworks/JavaVM.framework/Versions/1.6/Commands/java
 # CC="gcc-4.2 -arch i386"
