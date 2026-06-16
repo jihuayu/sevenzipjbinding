@@ -5,8 +5,9 @@
 
 #include "Common/IntToString.h"
 
-#include "7zip/UI/Common/ArchiveExtractCallback.h"
+#include "7zip/IPassword.h"
 #include "7zip/UI/Common/PropIDUtils.h"
+#include "7zip/UI/Common/LoadCodecs.h"
 #include "7zip/Common/FileStreams.h"
 #include "Windows/PropVariant.h"
 #include "7zip/Archive/IArchive.h"
