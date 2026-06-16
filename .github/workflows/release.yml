@@ -382,12 +382,12 @@ jobs:
       - name: Build Central bundle
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: scripts/release/make-central-bundle.sh "${{ needs.context.outputs.version }}" dist "sevenzipjbinding-${{ needs.context.outputs.version }}-central-bundle.zip"
+        run: scripts/release/make-central-bundle.sh "${{ needs.context.outputs.version }}" dist "$GITHUB_WORKSPACE/sevenzipjbinding-${{ needs.context.outputs.version }}-central-bundle.zip"
 
       - uses: actions/upload-artifact@v4
         with:
           name: central-bundle
-          path: sevenzipjbinding-${{ needs.context.outputs.version }}-central-bundle.zip
+          path: ${{ github.workspace }}/sevenzipjbinding-${{ needs.context.outputs.version }}-central-bundle.zip
           if-no-files-found: error
 
       - name: Upload to Maven Central Portal
@@ -402,4 +402,4 @@ jobs:
             echo "Refusing to publish unsigned bundle. Configure GPG_PRIVATE_KEY and GPG_PASSPHRASE secrets." >&2
             exit 1
           fi
-          scripts/release/publish-central.sh "sevenzipjbinding-${{ needs.context.outputs.version }}-central-bundle.zip" "sevenzipjbinding-${{ needs.context.outputs.version }}"
+          scripts/release/publish-central.sh "$GITHUB_WORKSPACE/sevenzipjbinding-${{ needs.context.outputs.version }}-central-bundle.zip" "sevenzipjbinding-${{ needs.context.outputs.version }}"
